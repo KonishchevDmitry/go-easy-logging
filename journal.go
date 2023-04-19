@@ -13,13 +13,13 @@ type journalCore struct {
 
 var _ zapcore.Core = &journalCore{}
 
-func newJournalCore(name string, level zapcore.LevelEnabler, encoder zapcore.Encoder) zapcore.Core {
+func newJournalCore(syslogIdentifier string, level zapcore.LevelEnabler, encoder zapcore.Encoder) zapcore.Core {
 	return &journalCore{
 		LevelEnabler: level,
 		encoder:      encoder,
 		fields: map[string]string{
 			"SYSLOG_FACILITY":   "3",
-			"SYSLOG_IDENTIFIER": name,
+			"SYSLOG_IDENTIFIER": syslogIdentifier,
 		},
 	}
 }

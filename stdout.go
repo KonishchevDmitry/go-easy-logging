@@ -2,6 +2,7 @@ package logging
 
 import (
 	"os"
+	"sync"
 
 	"go.uber.org/zap/zapcore"
 )
@@ -9,6 +10,7 @@ import (
 type stdoutCore struct {
 	zapcore.LevelEnabler
 	encoder zapcore.Encoder
+	lock    sync.Mutex
 }
 
 var _ zapcore.Core = &stdoutCore{}
@@ -43,7 +45,10 @@ func (c *stdoutCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 		file = os.Stderr
 	}
 
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	_, _ = file.Write(buf.Bytes())
+
 	return nil
 }
 
