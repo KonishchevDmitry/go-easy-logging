@@ -3,7 +3,10 @@ package logging
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 
+	"github.com/coreos/go-systemd/v22/journal"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -25,7 +28,12 @@ func Configure(config Config) (*zap.SugaredLogger, error) {
 
 	toJournal := config.Daemon
 	if toJournal {
-		encoderConfig.LineEnding = ""
+		if journal.Enabled() {
+			encoderConfig.LineEnding = ""
+		} else {
+			_, _ = fmt.Fprintln(os.Stderr, "systemd journal is not available - falling back to stderr.")
+			toJournal = false
+		}
 	}
 
 	if config.ShowLevel {
