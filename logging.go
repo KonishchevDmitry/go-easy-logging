@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
+	"time"
 
 	"github.com/coreos/go-systemd/v22/journal"
 	"go.uber.org/zap"
@@ -17,28 +19,42 @@ type Config struct {
 
 	Level     zapcore.Level
 	ShowLevel bool
+	ShowTime  bool
 
 	OnError func()
 }
 
 func Configure(config Config) (*zap.SugaredLogger, error) {
 	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.TimeKey = ""
 	encoderConfig.ConsoleSeparator = " "
 
-	toJournal := config.Daemon
-	if toJournal {
-		if journal.Enabled() {
+	var toJournal bool
+	if config.Daemon {
+		isLinux := runtime.GOOS == "linux"
+
+		if isLinux && journal.Enabled() {
+			toJournal = true
 			encoderConfig.LineEnding = ""
 		} else {
-			_, _ = fmt.Fprintln(os.Stderr, "systemd journal is not available - falling back to stderr.")
-			toJournal = false
+			if isLinux {
+				_, _ = fmt.Fprintln(os.Stderr, "systemd journal is not available - falling back to stderr.")
+			}
+			config.ShowTime = true
+			config.ShowLevel = true
 		}
 	}
 
+	if config.ShowTime {
+		encoderConfig.EncodeTime = func(timestamp time.Time, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(timestamp.Format("2006.01.02 15:04:05.000"))
+		}
+	} else {
+		encoderConfig.TimeKey = ""
+	}
+
 	if config.ShowLevel {
-		encoderConfig.EncodeLevel = func(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendString(level.CapitalString()[:1] + ":")
+		encoderConfig.EncodeLevel = func(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
+			encoder.AppendString(level.CapitalString()[:1] + ":")
 		}
 	} else {
 		encoderConfig.LevelKey = ""
